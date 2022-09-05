@@ -1,10 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures._base import Future
 import time
 import telegram
 import json
 import sys, os
 from pathlib import Path
 from datetime import datetime
+from typing import *
 
 
 #BOT_DIR = f"{Path.home()}\\Downloads"
@@ -27,7 +29,7 @@ except FileNotFoundError:
 
 
 class Command_Methods:
-    def join(bot, cmd_args, username, chat_id):
+    def join(bot: telegram.Bot, cmd_args: List[str], username: str, chat_id: int):
         try:
             args_dict = dict(arg.split('=') for arg in cmd_args)
         except ValueError: # No '=' sign found in command args
@@ -41,15 +43,24 @@ class Command_Methods:
         except KeyError as e:
             bot.send_message(chat_id=chat_id, text=f"Invalid args for join command - '{e.args[0]}' argument (or more) is missing")
             return
-
-        with open(DB_FILE, "w") as outfile:
-            DB[username] = {'chat_id': chat_id, 'start': start, 'length': length, 'hour': hour}
-            json.dump(DB, outfile)
+        
+        DB[username] = {'chat_id': chat_id, 'start': start, 'length': length, 'hour': hour}
+        write_db_to_file()
         
         bot.send_message(chat_id=chat_id, text=f"Successfully joined with args {args_dict}")
+    
+
+    def quit(bot: telegram.Bot, cmd_args: List[str], username: str, chat_id: int):
+        del DB[username]
+        write_db_to_file()
 
 
-def daily_pazam_update(bot, username):
+def write_db_to_file():
+    with open(DB_FILE, "w") as outfile:
+        json.dump(DB, outfile)
+
+
+def daily_pazam_update(bot: telegram.Bot, username: str):
     while True:
         now = datetime.today()
         daily_update_dt = datetime.strptime(DB[username]['hour'], "%H:%M").replace(year=now.year, month=now.month, day=now.day)
@@ -65,25 +76,26 @@ def daily_pazam_update(bot, username):
         bot.send_message(chat_id=DB[username]['chat_id'], text=f"Pazam update for {daily_update_dt.date()}: {pazam} days out of {total}, which is {int(pazam/total*100)}%")
 
 
-def calculate_pazam(username):
+def calculate_pazam(username: str) -> int:
     now = datetime.today()
     return (now-datetime.strptime(DB[username]['start'], "%d.%m.%Y")).days
 
 
-def calculate_end(username):
+def calculate_end(username: str) -> datetime:
     start = datetime.strptime(DB[username]['start'], "%d.%m.%Y")
     years, months = map(int, DB[username]['length'].split('.'))
     return start.replace(year=start.year+years if start.month+months<=12 else start.year+years+1, 
                 month=start.month+months if start.month+months<=12 else start.month+months%12, 
                                                                             day=start.day-1)
 
-def activate_scheduled_threadpools(bot, futures):
+
+def activate_scheduled_threadpools(bot: telegram.Bot, futures: List[Future]):
     with ThreadPoolExecutor() as exe:
         for username in DB.keys():
             futures.append(exe.submit(daily_pazam_update, bot, username))
 
 
-def handle_new_update(bot, last_update):
+def handle_new_update(bot: telegram.Bot, last_update: telegram.Update):
     print(last_update)
     try:
         message = last_update.message
@@ -113,7 +125,7 @@ def handle_new_update(bot, last_update):
         cmd_to_exe(bot, command_parts, author, chat.id)
 
 
-def listen_for_messages(bot):
+def listen_for_messages(bot: telegram.Bot):
     last_uid = None
     while True:
         updates = bot.get_updates()
