@@ -85,7 +85,7 @@ def calculate_end(username: str) -> datetime:
     start = datetime.strptime(DB[username]['start'], "%d.%m.%Y")
     years, months = map(int, DB[username]['length'].split('.'))
     return start.replace(year=start.year+years if start.month+months<=12 else start.year+years+1, 
-                month=start.month+months if start.month+months<=12 else start.month+months%12, 
+                month=start.month+months if start.month+months<=12 else (start.month+months)%12, 
                                                                             day=start.day-1)
 
 
