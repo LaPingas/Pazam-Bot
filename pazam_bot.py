@@ -9,9 +9,7 @@ from datetime import datetime
 from typing import *
 
 
-#BOT_DIR = f"{Path.home()}\\Downloads"
-BOT_DIR = "C:\\CustomCommands"
-os.chdir(BOT_DIR)
+os.chdir(os.path.dirname(__file__))
 
 EMPTY_STRING = ''
 TOKEN = ""
